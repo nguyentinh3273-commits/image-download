@@ -40,6 +40,7 @@ st.markdown("""
 
 st.title("📸 Công cụ Tải và Phân tích Hình ảnh Web")
 st.markdown("Dán URL của trang web bạn muốn trích xuất hình ảnh, sau đó sử dụng các bộ lọc và công cụ AI.")
+st.caption("✨ **Lưu ý:** Ứng dụng này đã được cải tiến để thêm header `Referer` và `User-Agent` chi tiết hơn nhằm vượt qua một số rào cản cạo web cơ bản.")
 
 # Khởi tạo state session
 if 'extracted_images' not in st.session_state:
@@ -59,13 +60,22 @@ def base64_to_inline_data(image_base64: str, mime_type: str = "image/jpeg") -> D
         }
     }
 
-def get_image_data_and_base64(img_url: str) -> Optional[Tuple[bytes, int, int, str]]:
+def get_image_data_and_base64(img_url: str, referer_url: str) -> Optional[Tuple[bytes, int, int, str, str]]:
     """
     Tải ảnh, lấy kích thước và chuyển đổi thành base64.
-    Trả về (bytes, width, height, base64_string) hoặc None nếu thất bại.
+    Sử dụng header Referer để vượt qua các khóa đơn giản.
+    Trả về (bytes, width, height, base64_string, mime_type) hoặc None nếu thất bại.
     """
     try:
-        response = requests.get(img_url, timeout=10)
+        # Sử dụng headers chi tiết hơn để mô phỏng trình duyệt
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Referer': referer_url, # THÊM HEADER REFERER QUAN TRỌNG
+            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
+        }
+        
+        response = requests.get(img_url, headers=headers, timeout=10)
         response.raise_for_status()
         img_bytes = response.content
         img_mime = response.headers.get('Content-Type', 'image/jpeg')
@@ -97,8 +107,11 @@ def get_image_data_and_base64(img_url: str) -> Optional[Tuple[bytes, int, int, s
 def extract_images(url: str):
     """Lấy tất cả các URL hình ảnh từ một trang web."""
     try:
+        # Sử dụng headers chi tiết hơn cho yêu cầu tải trang
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
         }
         st.info(f"Đang cố gắng tải nội dung từ: {url}")
         
@@ -127,7 +140,7 @@ def extract_images(url: str):
         return unique_urls
 
     except requests.exceptions.RequestException as e:
-        st.error(f"Lỗi khi truy cập URL: {e}")
+        st.error(f"Lỗi khi truy cập URL (Status Code: {e.response.status_code if e.response else 'None'}): Vui lòng kiểm tra lại URL hoặc trang web có thể đang chặn yêu cầu.")
         return []
     except Exception as e:
         st.error(f"Đã xảy ra lỗi: {e}")
@@ -221,7 +234,8 @@ with st.sidebar:
                 total_urls = len(urls)
 
                 for i, img_url in enumerate(urls):
-                    data = get_image_data_and_base64(img_url)
+                    # TRUYỀN input_url LÀM REFERER CHO BƯỚC TẢI HÌNH ẢNH
+                    data = get_image_data_and_base64(img_url, input_url) 
                     
                     if data:
                         img_bytes, width, height, base64_encoded, mime_type = data
