@@ -8,6 +8,14 @@ import json
 import time
 from typing import List, Dict, Any, Tuple, Optional
 
+# Đọc API Key từ Streamlit Secrets
+try:
+    API_KEY = st.secrets["GEMINI_API_KEY"]
+except KeyError:
+    st.error("Lỗi: Không tìm thấy 'GEMINI_API_KEY' trong Streamlit Secrets. Vui lòng cấu hình khóa API của bạn.")
+    # Dùng API_KEY rỗng nếu lỗi, dù API call sẽ thất bại
+    API_KEY = ""
+
 # --- Cấu hình API Gemini ---
 # KHÔNG CẦN CHỈ ĐỊNH API KEY. Streamlit Cloud sẽ tự động cung cấp trong môi trường chạy.
 GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025"
